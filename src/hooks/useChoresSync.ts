@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Chore } from '../types'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { isSupabaseConfigured } from '../lib/supabase'
 import {
   deleteChore as remoteDelete,
   listChores as remoteList,
@@ -41,59 +41,43 @@ export function storeWorkspace(w: Workspace | null) {
 /**
  * Hook central de tarefas.
  *  - Sem Supabase: usa localStorage (modo offline).
- *  - Com Supabase + workspace: carrega do servidor, escuta Realtime, persiste remoto.
+ *  - Com Supabase + workspace: carrega do servidor, faz sync por polling e persiste remoto.
  */
 export function useChoresSync(workspace: Workspace | null, updatedBy: string) {
   const [chores, setChores] = useState<Chore[]>(() => loadLocalChores())
   const [loading, setLoading] = useState(false)
-  const workspaceIdRef = useRef<string | null>(workspace?.id ?? null)
-  workspaceIdRef.current = workspace?.id ?? null
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !workspace || !supabase) {
-      setChores(loadLocalChores())
-      return
+    if (!isSupabaseConfigured || !workspace) {
+      const timeoutId = window.setTimeout(() => {
+        setChores(loadLocalChores())
+      }, 0)
+      return () => window.clearTimeout(timeoutId)
     }
-    const sb = supabase
     let cancelled = false
-    setLoading(true)
-    remoteList(workspace.id)
-      .then((list) => {
+
+    const sync = async (isFirstLoad = false) => {
+      try {
+        if (isFirstLoad) setLoading(true)
+        const list = await remoteList(workspace.access_token)
         if (cancelled) return
         setChores(list)
         saveLocalChores(list)
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('Falha ao carregar tarefas remotas', err)
-      })
-      .finally(() => !cancelled && setLoading(false))
+      } finally {
+        if (isFirstLoad && !cancelled) setLoading(false)
+      }
+    }
 
-    const channel = sb
-      .channel(`chores:${workspace.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chores',
-          filter: `workspace_id=eq.${workspace.id}`,
-        },
-        () => {
-          if (cancelled) return
-          remoteList(workspace.id)
-            .then((list) => {
-              if (cancelled) return
-              setChores(list)
-              saveLocalChores(list)
-            })
-            .catch((err) => console.error(err))
-        },
-      )
-      .subscribe()
+    void sync(true)
+    const interval = window.setInterval(() => {
+      void sync(false)
+    }, 5000)
 
     return () => {
       cancelled = true
-      sb.removeChannel(channel)
+      window.clearInterval(interval)
     }
   }, [workspace])
 
@@ -111,8 +95,8 @@ export function useChoresSync(workspace: Workspace | null, updatedBy: string) {
       const toDelete = [...prevIds].filter((id) => !nextIds.has(id))
 
       Promise.all([
-        ...next.map((c) => remoteUpsert(c, workspace.id, updatedBy).catch(console.error)),
-        ...toDelete.map((id) => remoteDelete(id).catch(console.error)),
+        ...next.map((c) => remoteUpsert(c, workspace.access_token, updatedBy).catch(console.error)),
+        ...toDelete.map((id) => remoteDelete(id, workspace.access_token).catch(console.error)),
       ]).catch(console.error)
     },
     [workspace, updatedBy],
@@ -128,7 +112,7 @@ export function useChoresSync(workspace: Workspace | null, updatedBy: string) {
       })
       if (isSupabaseConfigured && workspace) {
         try {
-          await remoteUpsert(c, workspace.id, updatedBy)
+          await remoteUpsert(c, workspace.access_token, updatedBy)
         } catch (err) {
           console.error(err)
         }
@@ -146,7 +130,7 @@ export function useChoresSync(workspace: Workspace | null, updatedBy: string) {
       })
       if (isSupabaseConfigured && workspace) {
         try {
-          await remoteDelete(id)
+          await remoteDelete(id, workspace.access_token)
         } catch (err) {
           console.error(err)
         }

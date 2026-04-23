@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format, isValid, parseISO } from 'date-fns'
 import { X, Trash2 } from 'lucide-react'
 import { CHORE_ICONS } from '../lib/choreIcons'
@@ -41,19 +41,9 @@ function buildNewChore(overrides: Partial<Chore>): Chore {
 }
 
 export function ChoreFormModal({ open, mode, onClose, onSave, onDelete }: Props) {
-  const [draft, setDraft] = useState<Chore | null>(null)
-
-  useEffect(() => {
-    if (!open) {
-      setDraft(null)
-      return
-    }
-    if (mode.type === 'create') {
-      setDraft(buildNewChore(mode.defaults ?? {}))
-    } else {
-      setDraft({ ...mode.chore })
-    }
-  }, [open, mode])
+  const [draft, setDraft] = useState<Chore>(() =>
+    mode.type === 'create' ? buildNewChore(mode.defaults ?? {}) : { ...mode.chore },
+  )
 
   const canSave = useMemo(() => {
     if (!draft?.title.trim()) return false
@@ -64,7 +54,7 @@ export function ChoreFormModal({ open, mode, onClose, onSave, onDelete }: Props)
     return true
   }, [draft])
 
-  if (!open || !draft) return null
+  if (!open) return null
 
   const updateStart = (s: string) => {
     const startIso = new Date(s).toISOString()

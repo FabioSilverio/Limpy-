@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import type { Chore } from '../types'
 
-export type Workspace = { id: string; code: string; name: string }
+export type Workspace = { id: string; code: string; name: string; access_token: string }
 
 export interface RemoteChoreRow {
   id: string
@@ -29,23 +29,6 @@ export function rowToChore(r: RemoteChoreRow): Chore {
     columnId: r.column_id,
     remindWhatsApp: r.remind_whats_app,
     remindAt: r.remind_at,
-  }
-}
-
-export function choreToRow(c: Chore, workspaceId: string, updatedBy: string) {
-  return {
-    id: c.id,
-    workspace_id: workspaceId,
-    title: c.title,
-    notes: c.notes,
-    icon_key: c.iconKey,
-    start_at: c.startAt,
-    end_at: c.endAt,
-    column_id: c.columnId,
-    remind_whats_app: c.remindWhatsApp,
-    remind_at: c.remindAt,
-    updated_at: new Date().toISOString(),
-    updated_by: updatedBy,
   }
 }
 
@@ -77,26 +60,38 @@ export async function joinWorkspace(code: string, passcode: string): Promise<Wor
   return arr && arr[0] ? arr[0] : null
 }
 
-export async function listChores(workspaceId: string): Promise<Chore[]> {
+export async function listChores(accessToken: string): Promise<Chore[]> {
   if (!supabase) return []
-  const { data, error } = await supabase
-    .from('chores')
-    .select('*')
-    .eq('workspace_id', workspaceId)
+  const { data, error } = await supabase.rpc('lp_list_chores', {
+    p_access_token: accessToken,
+  })
   if (error) throw error
   return (data as RemoteChoreRow[]).map(rowToChore)
 }
 
-export async function upsertChore(c: Chore, workspaceId: string, updatedBy: string) {
+export async function upsertChore(c: Chore, accessToken: string, updatedBy: string) {
   if (!supabase) return
-  const { error } = await supabase
-    .from('chores')
-    .upsert(choreToRow(c, workspaceId, updatedBy), { onConflict: 'id' })
+  const { error } = await supabase.rpc('lp_upsert_chore', {
+    p_access_token: accessToken,
+    p_id: c.id,
+    p_title: c.title,
+    p_notes: c.notes,
+    p_icon_key: c.iconKey,
+    p_start_at: c.startAt,
+    p_end_at: c.endAt,
+    p_column_id: c.columnId,
+    p_remind_whats_app: c.remindWhatsApp,
+    p_remind_at: c.remindAt,
+    p_updated_by: updatedBy,
+  })
   if (error) throw error
 }
 
-export async function deleteChore(id: string) {
+export async function deleteChore(id: string, accessToken: string) {
   if (!supabase) return
-  const { error } = await supabase.from('chores').delete().eq('id', id)
+  const { error } = await supabase.rpc('lp_delete_chore', {
+    p_access_token: accessToken,
+    p_id: id,
+  })
   if (error) throw error
 }

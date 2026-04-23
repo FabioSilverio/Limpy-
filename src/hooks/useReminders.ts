@@ -40,10 +40,6 @@ export function useReminders(
   onNotify?: (chore: Chore) => void,
 ) {
   const timers = useRef<Map<string, number>>(new Map())
-  const settingsRef = useRef(settings)
-  const onNotifyRef = useRef(onNotify)
-  settingsRef.current = settings
-  onNotifyRef.current = onNotify
 
   useEffect(() => {
     const map = timers.current
@@ -74,7 +70,7 @@ export function useReminders(
 
       const id = window.setTimeout(() => {
         markReminded(key)
-        onNotifyRef.current?.(ch)
+        onNotify?.(ch)
         if ('Notification' in window && Notification.permission === 'granted') {
           const when = t.toLocaleString('pt-BR', {
             dateStyle: 'short',
@@ -84,7 +80,7 @@ export function useReminders(
             ch.title,
             ch.notes,
             when,
-            settingsRef.current.labelPartner,
+            settings.labelPartner,
           )
           const n = new Notification('Limpy', {
             body: body.split('\n').slice(0, 4).join(' · '),
@@ -92,12 +88,12 @@ export function useReminders(
           })
           n.onclick = () => {
             openWhatsAppPrefilled(
-              settingsRef.current.whatsappPhone,
+              settings.whatsappPhone,
               buildReminderMessage(
                 ch.title,
                 ch.notes,
                 when,
-                settingsRef.current.labelPartner,
+                settings.labelPartner,
               ),
             )
             n.close()
@@ -108,12 +104,12 @@ export function useReminders(
             timeStyle: 'short',
           })
           openWhatsAppPrefilled(
-            settingsRef.current.whatsappPhone,
+            settings.whatsappPhone,
             buildReminderMessage(
               ch.title,
               ch.notes,
               when,
-              settingsRef.current.labelPartner,
+              settings.labelPartner,
             ),
           )
         }
@@ -126,5 +122,5 @@ export function useReminders(
       for (const id of map.values()) clearTimeout(id)
       map.clear()
     }
-  }, [chores, settings.whatsappPhone, settings.labelPartner])
+  }, [chores, onNotify, settings.labelPartner, settings.whatsappPhone])
 }

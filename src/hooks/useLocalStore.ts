@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { AppSettings, Chore } from '../types'
 import { defaultSettings } from '../types'
 
@@ -20,11 +20,7 @@ function save<T>(key: string, value: T) {
 }
 
 export function useChores() {
-  const [chores, setChores] = useState<Chore[]>([])
-
-  useEffect(() => {
-    setChores(load<Chore[]>(CHORES_KEY, []))
-  }, [])
+  const [chores, setChores] = useState<Chore[]>(() => load<Chore[]>(CHORES_KEY, []))
 
   const persist = useCallback((next: Chore[]) => {
     setChores(next)
@@ -35,11 +31,10 @@ export function useChores() {
 }
 
 export function useSettings() {
-  const [settings, setSettingsState] = useState<AppSettings>(defaultSettings)
-
-  useEffect(() => {
-    setSettingsState({ ...defaultSettings(), ...load<Partial<AppSettings>>(SETTINGS_KEY, {}) })
-  }, [])
+  const [settings, setSettingsState] = useState<AppSettings>(() => ({
+    ...defaultSettings(),
+    ...load<Partial<AppSettings>>(SETTINGS_KEY, {}),
+  }))
 
   const setSettings = useCallback((up: Partial<AppSettings> | ((s: AppSettings) => AppSettings)) => {
     setSettingsState((s) => {

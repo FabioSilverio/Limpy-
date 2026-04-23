@@ -21,8 +21,14 @@ type Props = {
   isDragging?: boolean
 }
 
+/* eslint-disable react-hooks/static-components */
+function ChoreIcon({ iconKey }: { iconKey: string }) {
+  const IconComponent = getChoreIcon(iconKey)
+  return <IconComponent className="h-5 w-5" strokeWidth={1.75} />
+}
+/* eslint-enable react-hooks/static-components */
+
 export function ChoreCard({ chore, onClick, compact, dragListeners, dragAttributes, isDragging }: Props) {
-  const Icon = getChoreIcon(chore.iconKey)
   const start = parseISO(chore.startAt)
   const timeStr = format(start, compact ? "EEE HH:mm" : "dd/MM · HH:mm", { locale: ptBR })
 
@@ -45,7 +51,7 @@ export function ChoreCard({ chore, onClick, compact, dragListeners, dragAttribut
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 text-teal-300"
           aria-hidden
         >
-          <Icon className="h-5 w-5" strokeWidth={1.75} />
+          <ChoreIcon iconKey={chore.iconKey} />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-50 line-clamp-2">{chore.title}</p>

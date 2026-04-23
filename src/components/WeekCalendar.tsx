@@ -1,12 +1,4 @@
-import {
-  addDays,
-  eachDayOfInterval,
-  endOfWeek,
-  format,
-  isSameDay,
-  parseISO,
-  startOfWeek,
-} from 'date-fns'
+import { addDays, eachDayOfInterval, endOfWeek, format, isSameDay, parseISO, startOfWeek } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { AppSettings, Chore } from '../types'
 import { getChoreIcon } from '../lib/choreIcons'
@@ -165,9 +157,4 @@ export function WeekCalendar({
       </div>
     </div>
   )
-}
-
-/** Helper used elsewhere: início de semana a partir de hoje */
-export function startOfThisWeek(weekStartsOn: 0 | 1) {
-  return startOfWeek(new Date(), { weekStartsOn })
 }

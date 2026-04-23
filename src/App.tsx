@@ -5,7 +5,7 @@ import { useSettings } from './hooks/useLocalStore'
 import { useChoresSync, loadStoredWorkspace, storeWorkspace } from './hooks/useChoresSync'
 import { useReminders } from './hooks/useReminders'
 import type { Chore } from './types'
-import { WeekCalendar, startOfThisWeek } from './components/WeekCalendar'
+import { WeekCalendar } from './components/WeekCalendar'
 import { KanbanBoard } from './components/KanbanBoard'
 import { ChoreFormModal } from './components/ChoreFormModal'
 import { SettingsSheet } from './components/SettingsSheet'
@@ -41,7 +41,9 @@ export default function App() {
   const [gate, setGate] = useState<GateState>(() => readStartState())
   const { settings, setSettings } = useSettings()
   const [view, setView] = useState<View>('calendar')
-  const [weekAnchor, setWeekAnchor] = useState(() => startOfThisWeek(settings.weekStartsOn))
+  const [weekAnchor, setWeekAnchor] = useState(() =>
+    startOfWeek(new Date(), { weekStartsOn: settings.weekStartsOn }),
+  )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [modal, setModal] = useState<ModalState>({ type: 'closed' })
 
@@ -197,6 +199,13 @@ export default function App() {
       </div>
 
       <ChoreFormModal
+        key={
+          modal.type === 'edit'
+            ? `edit:${modal.chore.id}`
+            : modal.type === 'create'
+              ? `create:${modal.defaults?.startAt ?? 'new'}:${modal.defaults?.endAt ?? 'new'}`
+              : 'closed'
+        }
         open={modal.type !== 'closed'}
         mode={
           modal.type === 'create'
