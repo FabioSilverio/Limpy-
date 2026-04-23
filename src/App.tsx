@@ -1,13 +1,17 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { addMinutes, setHours, setMinutes, startOfWeek } from 'date-fns'
-import { Settings, LayoutGrid, CalendarDays, Plus } from 'lucide-react'
-import { useChores, useSettings } from './hooks/useLocalStore'
+import { Settings, LayoutGrid, CalendarDays, Plus, LogOut, Users } from 'lucide-react'
+import { useSettings } from './hooks/useLocalStore'
+import { useChoresSync, loadStoredWorkspace, storeWorkspace } from './hooks/useChoresSync'
 import { useReminders } from './hooks/useReminders'
 import type { Chore } from './types'
 import { WeekCalendar, startOfThisWeek } from './components/WeekCalendar'
 import { KanbanBoard } from './components/KanbanBoard'
 import { ChoreFormModal } from './components/ChoreFormModal'
 import { SettingsSheet } from './components/SettingsSheet'
+import { WorkspaceGate } from './components/WorkspaceGate'
+import type { Workspace } from './lib/workspaceClient'
+import { isSupabaseConfigured } from './lib/supabase'
 import { buildReminderMessage, openWhatsAppPrefilled } from './lib/whatsapp'
 
 type View = 'calendar' | 'board'
@@ -17,13 +21,34 @@ type ModalState =
   | { type: 'create'; defaults?: Partial<Chore> }
   | { type: 'edit'; chore: Chore }
 
+type GateState =
+  | { kind: 'loading' }
+  | { kind: 'gate' }
+  | { kind: 'offline' }
+  | { kind: 'workspace'; workspace: Workspace; nickname: string }
+
+function readStartState(): GateState {
+  if (!isSupabaseConfigured) return { kind: 'offline' }
+  const w = loadStoredWorkspace()
+  if (w) {
+    const nickname = localStorage.getItem('limpy:nickname') ?? 'Alguém'
+    return { kind: 'workspace', workspace: w, nickname }
+  }
+  return { kind: 'gate' }
+}
+
 export default function App() {
-  const { chores, setChores } = useChores()
+  const [gate, setGate] = useState<GateState>(() => readStartState())
   const { settings, setSettings } = useSettings()
   const [view, setView] = useState<View>('calendar')
   const [weekAnchor, setWeekAnchor] = useState(() => startOfThisWeek(settings.weekStartsOn))
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [modal, setModal] = useState<ModalState>({ type: 'closed' })
+
+  const workspace = gate.kind === 'workspace' ? gate.workspace : null
+  const nickname = gate.kind === 'workspace' ? gate.nickname : 'Alguém'
+
+  const { chores, saveOne, removeOne, replaceAll } = useChoresSync(workspace, nickname)
 
   const onNotify = useCallback(
     (ch: Chore) => {
@@ -43,31 +68,44 @@ export default function App() {
 
   useReminders(chores, settings, onNotify)
 
-  const saveChore = (c: Chore) => {
-    const exists = chores.some((x) => x.id === c.id)
-    if (exists) {
-      setChores(chores.map((x) => (x.id === c.id ? c : x)))
-    } else {
-      setChores([...chores, c])
-    }
-    setModal({ type: 'closed' })
+  useEffect(() => {
+    if (gate.kind === 'workspace') storeWorkspace(gate.workspace)
+  }, [gate])
+
+  if (gate.kind === 'gate') {
+    return (
+      <WorkspaceGate
+        onEnter={(w, nn) => {
+          storeWorkspace(w)
+          localStorage.setItem('limpy:nickname', nn)
+          setGate({ kind: 'workspace', workspace: w, nickname: nn })
+        }}
+        onContinueOffline={() => setGate({ kind: 'offline' })}
+      />
+    )
   }
 
-  const deleteChore = (id: string) => {
-    setChores(chores.filter((c) => c.id !== id))
-    setModal({ type: 'closed' })
+  const leaveWorkspace = () => {
+    storeWorkspace(null)
+    setGate({ kind: 'gate' })
   }
 
-  const openCreate = (defaults?: Partial<Chore>) => {
-    setModal({ type: 'create', defaults })
-  }
+  const openCreate = (defaults?: Partial<Chore>) => setModal({ type: 'create', defaults })
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-3 pb-28 pt-4 sm:px-4 sm:pb-8">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Limpy</h1>
-          <p className="text-sm text-slate-400">Casa, calendário e quadro — juntos.</p>
+          {workspace ? (
+            <p className="text-xs text-slate-400 flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {workspace.name} · <span className="font-mono">{workspace.code}</span> ·{' '}
+              <span className="text-teal-300">{nickname}</span>
+            </p>
+          ) : (
+            <p className="text-xs text-slate-400">Modo offline (só neste dispositivo)</p>
+          )}
         </div>
         <div className="flex items-center gap-1 rounded-xl border border-slate-600/50 bg-slate-900/50 p-1">
           <button
@@ -97,6 +135,17 @@ export default function App() {
           </button>
         </div>
         <div className="flex w-full justify-end gap-2 sm:w-auto">
+          {workspace && (
+            <button
+              type="button"
+              onClick={leaveWorkspace}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+              title="Sair do workspace"
+            >
+              <LogOut className="h-4 w-4" />
+              Sair
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
@@ -130,7 +179,7 @@ export default function App() {
         {view === 'board' && (
           <KanbanBoard
             chores={chores}
-            onUpdateChores={setChores}
+            onUpdateChores={replaceAll}
             onOpenChore={(c) => setModal({ type: 'edit', chore: c })}
           />
         )}
@@ -157,8 +206,14 @@ export default function App() {
               : { type: 'create' }
         }
         onClose={() => setModal({ type: 'closed' })}
-        onSave={saveChore}
-        onDelete={deleteChore}
+        onSave={(c) => {
+          saveOne(c)
+          setModal({ type: 'closed' })
+        }}
+        onDelete={(id) => {
+          removeOne(id)
+          setModal({ type: 'closed' })
+        }}
       />
 
       <SettingsSheet
