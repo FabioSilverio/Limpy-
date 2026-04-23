@@ -32,9 +32,14 @@ export function SettingsSheet({
     ? `${window.location.origin}/api/ical?token=${encodeURIComponent(workspace.access_token)}&name=${encodeURIComponent(workspace.name ?? 'Limpy')}`
     : null
 
-  const googleAddUrl = icsUrl
-    ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(icsUrl)}`
-    : null
+  // webcal:// é o esquema padrão de "assinar calendário" — no celular o
+  // Android/iOS abrem direto o app do Google Agenda / Calendário.
+  const webcalUrl = icsUrl ? icsUrl.replace(/^https?:\/\//, 'webcal://') : null
+
+  // Fallback pra desktop: abre a tela "Adicionar por URL" do Google Agenda.
+  // Nem sempre o `?cid=` auto-preenche, mas deixa o usuário só colar.
+  const googleAddByUrlPage =
+    'https://calendar.google.com/calendar/u/0/r/settings/addbyurl'
 
   const copyUrl = async () => {
     if (!icsUrl) return
@@ -154,8 +159,9 @@ export function SettingsSheet({
                 {workspace ? (
                   <>
                     <p className="text-[12px] text-slate-500">
-                      Assine esta URL no Google Agenda → {'"De URL"'} para ver todas as tarefas
-                      automaticamente (atualiza a cada poucos minutos).
+                      O Google Agenda atualiza agendas por URL a cada algumas horas. No celular,
+                      o botão abaixo abre direto o app do Agenda; no computador, a forma garantida
+                      é copiar a URL e colar em “De URL”.
                     </p>
                     <div className="mt-2 flex flex-col gap-1.5">
                       <div className="flex items-stretch gap-1">
@@ -174,29 +180,45 @@ export function SettingsSheet({
                           {copied ? 'Copiado' : 'Copiar'}
                         </button>
                       </div>
-                      {googleAddUrl && (
+                      {webcalUrl && (
                         <a
-                          href={googleAddUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                          href={webcalUrl}
                           className="inline-flex items-center justify-center gap-1 rounded-lg border border-teal-600/60 bg-teal-950/40 px-2 py-1.5 text-xs text-teal-200"
                         >
                           <CalendarDays className="h-3.5 w-3.5" />
-                          Abrir no Google Agenda (assinar)
+                          Assinar no celular (webcal)
                         </a>
                       )}
+                      <a
+                        href={googleAddByUrlPage}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-slate-200"
+                      >
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        Abrir “De URL” no Google Agenda (desktop)
+                      </a>
                       <button
                         type="button"
                         onClick={exportFile}
                         className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-slate-200"
                       >
                         <Download className="h-3.5 w-3.5" />
-                        Baixar .ics (import manual)
+                        Baixar .ics (import único)
                       </button>
                     </div>
+                    <details className="mt-2 text-[11px] text-slate-400">
+                      <summary className="cursor-pointer">Passo a passo no desktop</summary>
+                      <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+                        <li>Toque em “Copiar” acima.</li>
+                        <li>Clique em “Abrir ‘De URL’ no Google Agenda (desktop)”.</li>
+                        <li>Cole a URL no campo “URL da agenda” e clique em “Adicionar agenda”.</li>
+                        <li>Renomeie em “Minhas agendas” → “Limpy”. Pronto: atualiza sozinho.</li>
+                      </ol>
+                    </details>
                     <p className="mt-2 text-[11px] text-slate-500">
-                      A URL contém o token de acesso ao workspace — qualquer pessoa com ela consegue
-                      ler as tarefas. Compartilhe só com quem você quer que veja a agenda.
+                      A URL contém o token do workspace — quem tiver ela consegue ler as tarefas.
+                      Compartilhe só com quem você quer que veja a agenda.
                     </p>
                   </>
                 ) : (
