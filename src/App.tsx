@@ -13,6 +13,7 @@ import { WorkspaceGate } from './components/WorkspaceGate'
 import type { Workspace } from './lib/workspaceClient'
 import { isSupabaseConfigured } from './lib/supabase'
 import { buildReminderMessage, openWhatsAppPrefilled } from './lib/whatsapp'
+import { baseChoreId } from './lib/recurrence'
 
 type View = 'calendar' | 'board'
 
@@ -93,6 +94,12 @@ export default function App() {
   }
 
   const openCreate = (defaults?: Partial<Chore>) => setModal({ type: 'create', defaults })
+
+  const openEditFromOccurrence = (c: Chore) => {
+    const baseId = baseChoreId(c.id)
+    const base = chores.find((x) => x.id === baseId) ?? c
+    setModal({ type: 'edit', chore: base })
+  }
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-3 pb-28 pt-4 sm:px-4 sm:pb-8">
@@ -175,7 +182,7 @@ export default function App() {
                 remindAt: addMinutes(t, -15).toISOString(),
               })
             }}
-            onChoreClick={(c) => setModal({ type: 'edit', chore: c })}
+            onChoreClick={openEditFromOccurrence}
           />
         )}
         {view === 'board' && (
@@ -234,6 +241,8 @@ export default function App() {
           if (!('Notification' in window)) return
           void Notification.requestPermission()
         }}
+        workspace={workspace}
+        chores={chores}
       />
     </div>
   )

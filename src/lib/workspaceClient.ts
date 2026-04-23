@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Chore } from '../types'
+import type { Chore, RecurrenceType } from '../types'
 
 export type Workspace = { id: string; code: string; name: string; access_token: string }
 
@@ -16,6 +16,9 @@ export interface RemoteChoreRow {
   remind_at: string | null
   updated_at: string
   updated_by: string
+  recurrence_type: RecurrenceType | null
+  recurrence_until: string | null
+  color: string | null
 }
 
 export function rowToChore(r: RemoteChoreRow): Chore {
@@ -29,6 +32,9 @@ export function rowToChore(r: RemoteChoreRow): Chore {
     columnId: r.column_id,
     remindWhatsApp: r.remind_whats_app,
     remindAt: r.remind_at,
+    recurrence: (r.recurrence_type ?? 'none') as RecurrenceType,
+    recurrenceUntil: r.recurrence_until,
+    color: r.color,
   }
 }
 
@@ -83,6 +89,9 @@ export async function upsertChore(c: Chore, accessToken: string, updatedBy: stri
     p_remind_whats_app: c.remindWhatsApp,
     p_remind_at: c.remindAt,
     p_updated_by: updatedBy,
+    p_recurrence_type: c.recurrence,
+    p_recurrence_until: c.recurrenceUntil,
+    p_color: c.color,
   })
   if (error) throw error
 }

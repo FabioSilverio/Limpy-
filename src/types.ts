@@ -1,5 +1,7 @@
 export type ColumnId = 'backlog' | 'doing' | 'done'
 
+export type RecurrenceType = 'none' | 'daily' | 'weekdays' | 'weekly'
+
 export interface Chore {
   id: string
   title: string
@@ -14,6 +16,12 @@ export interface Chore {
   remindWhatsApp: boolean
   /** Quando dispara o lembrete (ISO). Vazio = 15 min antes de `startAt` */
   remindAt: string | null
+  /** Repetir: nenhum, todo dia, dias úteis ou toda semana no mesmo dia da semana */
+  recurrence: RecurrenceType
+  /** Último dia (inclusivo) em que a recorrência ainda é gerada, ISO */
+  recurrenceUntil: string | null
+  /** Cor hex manual, ou null para usar a cor default do ícone */
+  color: string | null
 }
 
 export interface AppSettings {

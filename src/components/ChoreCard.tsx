@@ -1,16 +1,12 @@
 import type { DraggableAttributes, DraggableSyntheticListeners } from '@dnd-kit/core'
 import { getChoreIcon } from '../lib/choreIcons'
+import { choreColorStyles, hexWithAlpha, resolveChoreColor } from '../lib/colors'
 import type { Chore } from '../types'
 import { clsx } from 'clsx'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, Repeat } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-
-const columnColors: Record<Chore['columnId'], string> = {
-  backlog: 'border-indigo-500/50 bg-indigo-950/40',
-  doing: 'border-amber-500/50 bg-amber-950/30',
-  done: 'border-emerald-500/50 bg-emerald-950/30',
-}
+import { recurrenceLabel } from '../lib/recurrence'
 
 type Props = {
   chore: Chore
@@ -30,7 +26,12 @@ function ChoreIcon({ iconKey }: { iconKey: string }) {
 
 export function ChoreCard({ chore, onClick, compact, dragListeners, dragAttributes, isDragging }: Props) {
   const start = parseISO(chore.startAt)
-  const timeStr = format(start, compact ? "EEE HH:mm" : "dd/MM · HH:mm", { locale: ptBR })
+  const timeStr = format(start, compact ? 'EEE HH:mm' : 'dd/MM · HH:mm', { locale: ptBR })
+
+  const color = resolveChoreColor(chore.color, chore.iconKey)
+  const baseStyles = choreColorStyles(color)
+  const iconBg = hexWithAlpha(color, 0.24)
+  const iconFg = color
 
   return (
     <button
@@ -38,33 +39,47 @@ export function ChoreCard({ chore, onClick, compact, dragListeners, dragAttribut
       {...dragAttributes}
       {...dragListeners}
       onClick={onClick}
+      style={baseStyles}
       className={clsx(
         'w-full text-left rounded-xl border px-3 py-2.5 transition shadow-sm',
         'hover:brightness-110 active:scale-[0.99]',
-        columnColors[chore.columnId],
         isDragging && 'opacity-50 ring-2 ring-teal-400/60',
         compact && 'py-2',
       )}
     >
       <div className="flex items-start gap-2">
         <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-800/80 text-teal-300"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: iconBg, color: iconFg }}
           aria-hidden
         >
           <ChoreIcon iconKey={chore.iconKey} />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-50 line-clamp-2">{chore.title}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">{timeStr}</p>
+          <p className="text-[11px] text-slate-300/80 mt-0.5">{timeStr}</p>
           {chore.notes && !compact && (
-            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{chore.notes}</p>
+            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{chore.notes}</p>
           )}
-          {chore.remindWhatsApp && (
-            <span className="inline-flex items-center gap-0.5 mt-1.5 text-[10px] text-emerald-400/90">
-              <MessageCircle className="h-3 w-3" />
-              Lembrete WhatsApp
-            </span>
-          )}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {chore.remindWhatsApp && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-300/90">
+                <MessageCircle className="h-3 w-3" />
+                WhatsApp
+              </span>
+            )}
+            {chore.recurrence !== 'none' && (
+              <span
+                className="inline-flex items-center gap-0.5 text-[10px] text-slate-200/90"
+                title={recurrenceLabel(chore.recurrence)}
+              >
+                <Repeat className="h-3 w-3" />
+                {chore.recurrence === 'daily' && 'Diária'}
+                {chore.recurrence === 'weekdays' && 'Seg–Sex'}
+                {chore.recurrence === 'weekly' && 'Semanal'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </button>

@@ -1,16 +1,26 @@
 import { useMemo, useState } from 'react'
 import { format, isValid, parseISO } from 'date-fns'
-import { X, Trash2 } from 'lucide-react'
+import { X, Trash2, ExternalLink } from 'lucide-react'
 import { CHORE_ICONS } from '../lib/choreIcons'
 import { defaultRemindTimeIso, addMinutesToIso } from '../lib/remind'
-import type { Chore, ColumnId } from '../types'
+import type { Chore, ColumnId, RecurrenceType } from '../types'
 import { defaultChoreDurationMin } from '../types'
 import { clsx } from 'clsx'
+import { COLOR_PALETTE, resolveChoreColor } from '../lib/colors'
+import { RECURRENCE_OPTIONS } from '../lib/recurrence'
+import { googleCalendarEventUrl } from '../lib/googleCalendar'
 
 function toInputLocal(iso: string) {
   const d = parseISO(iso)
   if (!isValid(d)) return ''
   return format(d, "yyyy-MM-dd'T'HH:mm")
+}
+
+function toInputDate(iso: string | null) {
+  if (!iso) return ''
+  const d = parseISO(iso)
+  if (!isValid(d)) return ''
+  return format(d, 'yyyy-MM-dd')
 }
 
 type Mode = { type: 'create'; defaults?: Partial<Chore> } | { type: 'edit'; chore: Chore }
@@ -36,6 +46,9 @@ function buildNewChore(overrides: Partial<Chore>): Chore {
     columnId: 'backlog',
     remindWhatsApp: false,
     remindAt: null,
+    recurrence: 'none',
+    recurrenceUntil: null,
+    color: null,
     ...overrides,
   }
 }
@@ -53,6 +66,8 @@ export function ChoreFormModal({ open, mode, onClose, onSave, onDelete }: Props)
     if (draft.remindWhatsApp && draft.remindAt && !isValid(parseISO(draft.remindAt))) return false
     return true
   }, [draft])
+
+  const activeColor = resolveChoreColor(draft.color, draft.iconKey)
 
   if (!open) return null
 
@@ -134,6 +149,57 @@ export function ChoreFormModal({ open, mode, onClose, onSave, onDelete }: Props)
             </div>
           </div>
 
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-slate-500">Cor do card</p>
+              {draft.color && (
+                <button
+                  type="button"
+                  className="text-[11px] text-teal-300 underline"
+                  onClick={() => setDraft((d) => d && { ...d, color: null })}
+                >
+                  Usar cor do ícone
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDraft((d) => d && { ...d, color: null })}
+                className={clsx(
+                  'flex items-center gap-1 rounded-full border px-2 py-1 text-[11px]',
+                  draft.color === null
+                    ? 'border-teal-400 text-teal-200'
+                    : 'border-slate-600 text-slate-400',
+                )}
+                title="Automático (baseada no ícone)"
+              >
+                <span
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: activeColor }}
+                />
+                Auto
+              </button>
+              {COLOR_PALETTE.map((c) => {
+                const selected = draft.color?.toLowerCase() === c.hex.toLowerCase()
+                return (
+                  <button
+                    type="button"
+                    key={c.key}
+                    title={c.label}
+                    onClick={() => setDraft((d) => d && { ...d, color: c.hex })}
+                    className={clsx(
+                      'h-7 w-7 rounded-full border-2 transition',
+                      selected ? 'border-white' : 'border-slate-700 hover:border-slate-500',
+                    )}
+                    style={{ backgroundColor: c.hex }}
+                    aria-label={c.label}
+                  />
+                )
+              })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <label className="block col-span-2 sm:col-span-1">
               <span className="text-xs text-slate-500">Início</span>
@@ -165,6 +231,56 @@ export function ChoreFormModal({ open, mode, onClose, onSave, onDelete }: Props)
                 }}
               />
             </label>
+          </div>
+
+          <div className="rounded-xl border border-slate-600/60 bg-slate-950/40 p-3 space-y-2">
+            <label className="block">
+              <span className="text-xs text-slate-500">Repetir</span>
+              <select
+                className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-950/80 px-3 py-2 text-slate-100"
+                value={draft.recurrence}
+                onChange={(e) =>
+                  setDraft(
+                    (d) =>
+                      d && {
+                        ...d,
+                        recurrence: e.target.value as RecurrenceType,
+                      },
+                  )
+                }
+              >
+                {RECURRENCE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {draft.recurrence !== 'none' && (
+              <label className="block">
+                <span className="text-xs text-slate-500">Repetir até (opcional)</span>
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-950/80 px-2 py-2 text-sm text-slate-100"
+                  value={toInputDate(draft.recurrenceUntil)}
+                  onChange={(e) =>
+                    setDraft((d) =>
+                      d
+                        ? {
+                            ...d,
+                            recurrenceUntil: e.target.value
+                              ? new Date(e.target.value + 'T23:59:59').toISOString()
+                              : null,
+                          }
+                        : d,
+                    )
+                  }
+                />
+              </label>
+            )}
+            <p className="text-[11px] text-slate-500">
+              Tarefas recorrentes aparecem automaticamente no calendário em todas as datas que combinam com a regra.
+            </p>
           </div>
 
           <label className="block">
@@ -199,8 +315,7 @@ export function ChoreFormModal({ open, mode, onClose, onSave, onDelete }: Props)
                   setDraft((d) => {
                     if (!d) return d
                     const remAt =
-                      d.remindAt ??
-                      (on ? (defaultRemindTimeIso(d) ?? d.startAt) : null)
+                      d.remindAt ?? (on ? (defaultRemindTimeIso(d) ?? d.startAt) : null)
                     return { ...d, remindWhatsApp: on, remindAt: on ? remAt : d.remindAt }
                   })
                 }}
@@ -208,8 +323,9 @@ export function ChoreFormModal({ open, mode, onClose, onSave, onDelete }: Props)
               Lembrete com aviso (notificação + link WhatsApp)
             </label>
             <p className="text-[11px] text-slate-500">
-              Configure o número em “Ajustes”. O lembrete usa notificações do navegador; em celular, deixe o
-              PWA com permissão de notificação. Se puder, preencha o horário exato abaixo.
+              Configure o número em “Ajustes”. O lembrete usa notificações do navegador; em celular,
+              deixe o PWA com permissão de notificação. Para recorrentes, o lembrete é reagendado para
+              a próxima ocorrência.
             </p>
             {draft.remindWhatsApp && (
               <label className="block">
@@ -218,13 +334,15 @@ export function ChoreFormModal({ open, mode, onClose, onSave, onDelete }: Props)
                   <input
                     type="datetime-local"
                     className="flex-1 min-w-[12rem] rounded-lg border border-slate-600 bg-slate-950/80 px-2 py-2 text-slate-100 text-sm"
-                    value={draft.remindAt ? toInputLocal(draft.remindAt) : toInputLocal(defaultRemindTimeIso(draft) ?? draft.startAt)}
+                    value={
+                      draft.remindAt
+                        ? toInputLocal(draft.remindAt)
+                        : toInputLocal(defaultRemindTimeIso(draft) ?? draft.startAt)
+                    }
                     onChange={(e) => {
                       if (!e.target.value) return
                       setDraft((d) =>
-                        d
-                          ? { ...d, remindAt: new Date(e.target.value).toISOString() }
-                          : d,
+                        d ? { ...d, remindAt: new Date(e.target.value).toISOString() } : d,
                       )
                     }}
                   />
@@ -247,6 +365,16 @@ export function ChoreFormModal({ open, mode, onClose, onSave, onDelete }: Props)
               </label>
             )}
           </div>
+
+          <a
+            href={googleCalendarEventUrl(draft)}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-100 hover:bg-slate-700"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Adicionar no Google Agenda
+          </a>
         </div>
         <footer className="flex items-center justify-between gap-2 border-t border-slate-700 p-3">
           <div>

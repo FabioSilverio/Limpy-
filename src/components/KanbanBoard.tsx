@@ -1,7 +1,8 @@
 import {
   DndContext,
   type DragEndEvent,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDroppable,
   useDraggable,
   useSensor,
@@ -36,21 +37,13 @@ function DraggableChoreItem({
     data: { type: 'chore' as const, chore },
   })
 
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
+  const style = transform
+    ? { transform: CSS.Translate.toString(transform), touchAction: 'none' as const }
+    : { touchAction: 'none' as const }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="touch-pan-y"
-      {...listeners}
-      {...attributes}
-    >
-      <ChoreCard
-        chore={chore}
-        onClick={() => onOpen(chore)}
-        isDragging={isDragging}
-      />
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      <ChoreCard chore={chore} onClick={() => onOpen(chore)} isDragging={isDragging} />
     </div>
   )
 }
@@ -106,8 +99,11 @@ function resolveTargetColumn(overId: string, chores: Chore[], activeChore: Chore
 }
 
 export function KanbanBoard({ chores, onUpdateChores, onOpenChore }: Props) {
+  // Mouse para desktop (distance pequena = responsivo), Touch com pequeno delay
+  // pra deixar o navegador diferenciar scroll vertical de arrasto.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
   )
 
   const handleDragEnd = (e: DragEndEvent) => {

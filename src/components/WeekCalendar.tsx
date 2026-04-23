@@ -2,6 +2,8 @@ import { addDays, eachDayOfInterval, endOfWeek, format, isSameDay, parseISO, sta
 import { ptBR } from 'date-fns/locale'
 import type { AppSettings, Chore } from '../types'
 import { getChoreIcon } from '../lib/choreIcons'
+import { hexWithAlpha, resolveChoreColor } from '../lib/colors'
+import { expandRecurrence } from '../lib/recurrence'
 import { clsx } from 'clsx'
 
 const HOUR_PX = 44
@@ -33,11 +35,10 @@ export function WeekCalendar({
 
   const totalH = dayEndHour - dayStartHour
 
+  const expandedChores = chores.flatMap((c) => expandRecurrence(c, start, weekEnd))
+
   function layoutForDay(day: Date) {
-    const dayChores = chores.filter((c) => {
-      const s = parseISO(c.startAt)
-      return isSameDay(s, day)
-    })
+    const dayChores = expandedChores.filter((c) => isSameDay(parseISO(c.startAt), day))
 
     return dayChores.map((ch) => {
       const s = parseISO(ch.startAt)
@@ -47,7 +48,8 @@ export function WeekCalendar({
       const top = Math.max(0, (sh - dayStartHour) * HOUR_PX)
       const endOffset = (eh - dayStartHour) * HOUR_PX
       const height = Math.max(28, endOffset - top)
-      return { ch, top, height, Icon: getChoreIcon(ch.iconKey) }
+      const color = resolveChoreColor(ch.color, ch.iconKey)
+      return { ch, top, height, color, Icon: getChoreIcon(ch.iconKey) }
     })
   }
 
@@ -62,7 +64,7 @@ export function WeekCalendar({
           ← Sem.
         </button>
         <p className="text-sm font-medium text-slate-200">
-          {format(start, "d MMM", { locale: ptBR })} – {format(weekEnd, "d MMM yyyy", { locale: ptBR })}
+          {format(start, 'd MMM', { locale: ptBR })} – {format(weekEnd, 'd MMM yyyy', { locale: ptBR })}
         </p>
         <button
           type="button"
@@ -125,7 +127,7 @@ export function WeekCalendar({
                   )
                 })}
 
-                {layoutForDay(day).map(({ ch, top, height, Icon }) => (
+                {layoutForDay(day).map(({ ch, top, height, color, Icon }) => (
                   <button
                     type="button"
                     key={ch.id}
@@ -135,16 +137,22 @@ export function WeekCalendar({
                     }}
                     className={clsx(
                       'absolute left-0.5 right-0.5 z-10 flex flex-col items-start overflow-hidden',
-                      'rounded-lg border border-teal-600/50 bg-slate-800/95 px-1 py-0.5 text-left shadow',
-                      'hover:ring-1 hover:ring-teal-400/50',
+                      'rounded-lg border px-1 py-0.5 text-left shadow',
+                      'hover:ring-1 hover:ring-white/40',
                     )}
-                    style={{ top, height, minHeight: 28 }}
+                    style={{
+                      top,
+                      height,
+                      minHeight: 28,
+                      borderColor: hexWithAlpha(color, 0.7),
+                      backgroundColor: hexWithAlpha(color, 0.28),
+                    }}
                   >
                     <span className="flex w-full min-w-0 items-center gap-0.5">
-                      <Icon className="h-3.5 w-3.5 shrink-0 text-teal-300" />
+                      <Icon className="h-3.5 w-3.5 shrink-0" style={{ color }} />
                       <span className="truncate text-[10px] font-semibold text-slate-100">{ch.title}</span>
                     </span>
-                    <span className="text-[9px] text-slate-500">
+                    <span className="text-[9px] text-slate-200/80">
                       {format(parseISO(ch.startAt), 'HH:mm', { locale: ptBR })} –{' '}
                       {format(parseISO(ch.endAt), 'HH:mm', { locale: ptBR })}
                     </span>
