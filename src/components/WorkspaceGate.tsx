@@ -11,6 +11,21 @@ type Props = {
   onContinueOffline: () => void
 }
 
+function formatUnknownError(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (typeof err === 'string') return err
+  if (err && typeof err === 'object') {
+    const maybe = err as {
+      message?: string
+      details?: string | null
+      hint?: string | null
+      code?: string
+    }
+    return [maybe.message, maybe.details, maybe.hint, maybe.code].filter(Boolean).join(' | ')
+  }
+  return 'Erro inesperado ao acessar o workspace.'
+}
+
 export function WorkspaceGate({ onEnter, onContinueOffline }: Props) {
   const [mode, setMode] = useState<Mode>('join')
   const [code, setCode] = useState('')
@@ -42,10 +57,12 @@ export function WorkspaceGate({ onEnter, onContinueOffline }: Props) {
         onEnter(w, nickname.trim() || 'Alguém')
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const msg = formatUnknownError(err)
       if (msg.includes('CODE_TAKEN')) setError('Esse código já existe. Use outro ou entre com a senha.')
       else if (msg.includes('CODE_TOO_SHORT')) setError('O código precisa ter 3+ caracteres.')
       else if (msg.includes('PASSCODE_TOO_SHORT')) setError('A senha precisa ter 4+ caracteres.')
+      else if (msg.includes('permission denied for schema private'))
+        setError('O banco ainda precisa da permissão final. Rode o SQL atualizado novamente no Supabase.')
       else setError(msg)
     } finally {
       setLoading(false)

@@ -3,6 +3,7 @@
 
 create extension if not exists pgcrypto;
 create schema if not exists private;
+grant usage on schema private to anon, authenticated;
 
 -- =========================================================================
 -- TABELAS
@@ -82,6 +83,20 @@ create policy chores_no_direct_access
 -- =========================================================================
 -- RPCs privadas (SECURITY DEFINER)
 -- =========================================================================
+
+-- Compatibilidade para reruns após mudanças de retorno/assinatura.
+drop function if exists public.lp_create_workspace(text, text, text);
+drop function if exists public.lp_verify_passcode(text, text);
+drop function if exists public.lp_list_chores(text);
+drop function if exists public.lp_upsert_chore(text, uuid, text, text, text, timestamptz, timestamptz, text, boolean, timestamptz, text);
+drop function if exists public.lp_delete_chore(text, uuid);
+
+drop function if exists private.lp_create_workspace_impl(text, text, text);
+drop function if exists private.lp_verify_passcode_impl(text, text);
+drop function if exists private.lp_list_chores_impl(text);
+drop function if exists private.lp_upsert_chore_impl(text, uuid, text, text, text, timestamptz, timestamptz, text, boolean, timestamptz, text);
+drop function if exists private.lp_delete_chore_impl(text, uuid);
+drop function if exists private.lp_issue_workspace_token(uuid);
 
 create or replace function private.lp_issue_workspace_token(
   p_workspace_id uuid
