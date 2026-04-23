@@ -1,7 +1,13 @@
 -- Limpy: workspaces compartilhados por código + senha (sem auth de usuário)
 -- Rode este arquivo inteiro no SQL Editor do Supabase.
 
-create extension if not exists pgcrypto;
+-- pgcrypto no Supabase fica em `extensions`. Garantimos que exista e seja
+-- acessível; as funções abaixo usam `search_path` com `extensions` para
+-- enxergar `gen_salt`, `crypt` e `gen_random_bytes`.
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
+grant usage on schema extensions to anon, authenticated;
+
 create schema if not exists private;
 grant usage on schema private to anon, authenticated;
 
@@ -104,10 +110,10 @@ create or replace function private.lp_issue_workspace_token(
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
-  v_token text := encode(gen_random_bytes(24), 'hex');
+  v_token text := encode(extensions.gen_random_bytes(24), 'hex');
 begin
   insert into public.workspace_tokens (token, workspace_id)
   values (v_token, p_workspace_id);
@@ -127,7 +133,7 @@ create or replace function private.lp_create_workspace_impl(
 returns table (id uuid, name text, code text, access_token text)
 language plpgsql
 security definer
-set search_path = public, private
+set search_path = public, private, extensions
 as $$
 declare
   v_code text := lower(trim(p_code));
@@ -146,7 +152,7 @@ begin
   end if;
 
   insert into public.workspaces (code, passcode_hash, name)
-  values (v_code, crypt(p_passcode, gen_salt('bf', 8)), p_name)
+  values (v_code, extensions.crypt(p_passcode, extensions.gen_salt('bf')), p_name)
   returning workspaces.id into v_id;
 
   return query
@@ -166,7 +172,7 @@ create or replace function private.lp_verify_passcode_impl(
 returns table (id uuid, name text, code text, access_token text)
 language plpgsql
 security definer
-set search_path = public, private
+set search_path = public, private, extensions
 as $$
 declare
   v_code text := lower(trim(p_code));
@@ -175,7 +181,7 @@ begin
     select w.id, w.name, w.code, private.lp_issue_workspace_token(w.id)
       from public.workspaces w
      where w.code = v_code
-       and w.passcode_hash = crypt(p_passcode, w.passcode_hash);
+       and w.passcode_hash = extensions.crypt(p_passcode, w.passcode_hash);
 end;
 $$;
 
