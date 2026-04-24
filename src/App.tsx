@@ -10,6 +10,7 @@ import { KanbanBoard } from './components/KanbanBoard'
 import { ChoreFormModal } from './components/ChoreFormModal'
 import { SettingsSheet } from './components/SettingsSheet'
 import { WorkspaceGate } from './components/WorkspaceGate'
+import { GamificationPanel } from './components/GamificationPanel'
 import type { Workspace } from './lib/workspaceClient'
 import { isSupabaseConfigured } from './lib/supabase'
 import { buildReminderMessage, openWhatsAppPrefilled } from './lib/whatsapp'
@@ -167,6 +168,7 @@ export default function App() {
       </header>
 
       <main className="flex-1">
+        <GamificationPanel chores={chores} currentUser={nickname} />
         {view === 'calendar' && (
           <WeekCalendar
             weekAnchor={weekAnchor}
@@ -188,6 +190,7 @@ export default function App() {
         {view === 'board' && (
           <KanbanBoard
             chores={chores}
+            currentUser={nickname}
             onUpdateChores={replaceAll}
             onOpenChore={(c) => setModal({ type: 'edit', chore: c })}
           />
@@ -223,7 +226,7 @@ export default function App() {
         }
         onClose={() => setModal({ type: 'closed' })}
         onSave={(c) => {
-          saveOne(c)
+          saveOne({ ...c, updatedBy: nickname })
           setModal({ type: 'closed' })
         }}
         onDelete={(id) => {

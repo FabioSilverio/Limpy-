@@ -35,6 +35,7 @@ export function rowToChore(r: RemoteChoreRow): Chore {
     recurrence: (r.recurrence_type ?? 'none') as RecurrenceType,
     recurrenceUntil: r.recurrence_until,
     color: r.color,
+    updatedBy: r.updated_by,
   }
 }
 
@@ -88,7 +89,7 @@ export async function upsertChore(c: Chore, accessToken: string, updatedBy: stri
     p_column_id: c.columnId,
     p_remind_whats_app: c.remindWhatsApp,
     p_remind_at: c.remindAt,
-    p_updated_by: updatedBy,
+    p_updated_by: c.updatedBy ?? updatedBy,
     p_recurrence_type: c.recurrence,
     p_recurrence_until: c.recurrenceUntil,
     p_color: c.color,

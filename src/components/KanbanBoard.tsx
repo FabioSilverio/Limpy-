@@ -83,6 +83,7 @@ function ColumnDrop({
 
 type Props = {
   chores: Chore[]
+  currentUser: string
   onUpdateChores: (chores: Chore[]) => void
   onOpenChore: (c: Chore) => void
 }
@@ -98,7 +99,7 @@ function resolveTargetColumn(overId: string, chores: Chore[], activeChore: Chore
   return activeChore.columnId
 }
 
-export function KanbanBoard({ chores, onUpdateChores, onOpenChore }: Props) {
+export function KanbanBoard({ chores, currentUser, onUpdateChores, onOpenChore }: Props) {
   // Mouse para desktop (distance pequena = responsivo), Touch com pequeno delay
   // pra deixar o navegador diferenciar scroll vertical de arrasto.
   const sensors = useSensors(
@@ -115,7 +116,9 @@ export function KanbanBoard({ chores, onUpdateChores, onOpenChore }: Props) {
     if (!activeChore) return
     const target = resolveTargetColumn(overId, chores, activeChore)
     if (target && target !== activeChore.columnId) {
-      onUpdateChores(chores.map((c) => (c.id === activeId ? { ...c, columnId: target } : c)))
+      onUpdateChores(
+        chores.map((c) => (c.id === activeId ? { ...c, columnId: target, updatedBy: currentUser } : c)),
+      )
     }
   }
 

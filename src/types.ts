@@ -22,6 +22,8 @@ export interface Chore {
   recurrenceUntil: string | null
   /** Cor hex manual, ou null para usar a cor default do ícone */
   color: string | null
+  /** Última pessoa que editou/moveu a tarefa */
+  updatedBy?: string
 }
 
 export interface AppSettings {

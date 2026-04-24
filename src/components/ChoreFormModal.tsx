@@ -49,6 +49,7 @@ function buildNewChore(overrides: Partial<Chore>): Chore {
     recurrence: 'none',
     recurrenceUntil: null,
     color: null,
+    updatedBy: undefined,
     ...overrides,
   }
 }
