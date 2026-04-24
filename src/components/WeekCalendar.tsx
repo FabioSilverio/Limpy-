@@ -7,6 +7,9 @@ import { expandRecurrence } from '../lib/recurrence'
 import { clsx } from 'clsx'
 
 const HOUR_PX = 44
+const MIN_DAY_WIDTH = 150
+const LANE_WIDTH_PX = 132
+const MAX_DAY_WIDTH = 560
 
 type Props = {
   weekAnchor: Date
@@ -34,7 +37,6 @@ export function WeekCalendar({
   for (let h = dayStartHour; h < dayEndHour; h++) hours.push(h)
 
   const totalH = dayEndHour - dayStartHour
-  const baseDayHeight = totalH * HOUR_PX
 
   const expandedChores = chores.flatMap((c) => expandRecurrence(c, start, weekEnd))
 
@@ -61,7 +63,8 @@ export function WeekCalendar({
       color: string
       Icon: ReturnType<typeof getChoreIcon>
       zIndex: number
-      bottom: number
+      leftPct: number
+      widthPct: number
     }
 
     const groups: (typeof dayChores)[] = []
@@ -80,37 +83,56 @@ export function WeekCalendar({
     }
     if (currentGroup.length > 0) groups.push(currentGroup)
 
-    let stackedBottom = 0
-    return dayChores.map((item, idx) => {
-      const sh = item.start.getHours() + item.start.getMinutes() / 60
-      const eh = item.end.getHours() + item.end.getMinutes() / 60
-      const naturalTop = Math.max(0, (sh - dayStartHour) * HOUR_PX)
-      const endOffset = (eh - dayStartHour) * HOUR_PX
-      const height = Math.max(34, endOffset - naturalTop)
-      const top = Math.max(naturalTop, stackedBottom + 3)
-      const bottom = top + height
-      stackedBottom = bottom
-      const color = resolveChoreColor(item.ch.color, item.ch.iconKey)
+    let maxConcurrent = 1
 
-      return {
-        ch: item.ch,
-        top,
-        height,
-        color,
-        Icon: getChoreIcon(item.ch.iconKey),
-        zIndex: 10 + idx,
-        bottom,
-      } satisfies LayoutItem
+    const items = groups.flatMap((group) => {
+      const active: { endMin: number; column: number }[] = []
+      const withColumns = group.map((item) => {
+        for (let i = active.length - 1; i >= 0; i--) {
+          if (active[i].endMin <= item.startMin) active.splice(i, 1)
+        }
+        let column = 0
+        while (active.some((a) => a.column === column)) column++
+        active.push({ endMin: item.endMin, column })
+        return { ...item, column }
+      })
+
+      const totalColumns = Math.max(...withColumns.map((item) => item.column)) + 1
+      maxConcurrent = Math.max(maxConcurrent, totalColumns)
+
+      return withColumns.map((item) => {
+        const sh = item.start.getHours() + item.start.getMinutes() / 60
+        const eh = item.end.getHours() + item.end.getMinutes() / 60
+        const top = Math.max(0, (sh - dayStartHour) * HOUR_PX)
+        const endOffset = (eh - dayStartHour) * HOUR_PX
+        const height = Math.max(34, endOffset - top)
+        const color = resolveChoreColor(item.ch.color, item.ch.iconKey)
+        return {
+          ch: item.ch,
+          top,
+          height,
+          color,
+          Icon: getChoreIcon(item.ch.iconKey),
+          zIndex: 10 + item.column,
+          leftPct: item.column * (100 / totalColumns),
+          widthPct: 100 / totalColumns,
+        } satisfies LayoutItem
+      })
     })
+
+    return { items, maxConcurrent }
   }
 
   const dayLayouts = new Map(
     days.map((day) => {
-      const layout = layoutForDay(day)
-      const neededHeight = layout.reduce((max, item) => Math.max(max, item.bottom + 8), baseDayHeight)
-      return [day.toISOString(), { layout, neededHeight }] as const
+      const data = layoutForDay(day)
+      const dayWidth = Math.max(MIN_DAY_WIDTH, Math.min(MAX_DAY_WIDTH, data.maxConcurrent * LANE_WIDTH_PX))
+      return [day.toISOString(), { ...data, dayWidth }] as const
     }),
   )
+
+  const dayWidths = days.map((day) => dayLayouts.get(day.toISOString())?.dayWidth ?? MIN_DAY_WIDTH)
+  const totalGridWidth = 40 + dayWidths.reduce((sum, w) => sum + w, 0)
 
   return (
     <div className="w-full max-w-full overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/30">
@@ -137,8 +159,8 @@ export function WeekCalendar({
         <div
           className="grid"
           style={{
-            gridTemplateColumns: `40px repeat(${days.length}, minmax(100px, 1fr))`,
-            minWidth: `${40 + days.length * 150}px`,
+            gridTemplateColumns: `40px ${dayWidths.map((w) => `${w}px`).join(' ')}`,
+            minWidth: `${totalGridWidth}px`,
           }}
         >
           <div className="border-r border-slate-700/50" aria-hidden>
@@ -171,7 +193,7 @@ export function WeekCalendar({
               </div>
               <div
                 className="relative"
-                style={{ height: dayData.neededHeight }}
+                style={{ height: totalH * HOUR_PX }}
                 role="presentation"
                 onKeyDown={() => undefined}
               >
@@ -192,7 +214,7 @@ export function WeekCalendar({
                   )
                 })}
 
-                {dayData.layout.map(({ ch, top, height, color, Icon, zIndex }) => (
+                {dayData.items.map(({ ch, top, height, color, Icon, zIndex, leftPct, widthPct }) => (
                   <button
                     type="button"
                     key={ch.id}
@@ -201,7 +223,7 @@ export function WeekCalendar({
                       onChoreClick(ch)
                     }}
                     className={clsx(
-                      'absolute left-1 right-1 flex flex-col items-start overflow-hidden',
+                      'absolute flex flex-col items-start overflow-hidden',
                       'rounded-lg border px-1 py-0.5 text-left shadow',
                       'hover:ring-1 hover:ring-white/40',
                     )}
@@ -209,6 +231,8 @@ export function WeekCalendar({
                       top,
                       height,
                       minHeight: 34,
+                      left: `calc(${leftPct}% + 2px)`,
+                      width: `calc(${widthPct}% - 4px)`,
                       zIndex,
                       borderColor: hexWithAlpha(color, 0.7),
                       backgroundColor: hexWithAlpha(color, 0.28),
