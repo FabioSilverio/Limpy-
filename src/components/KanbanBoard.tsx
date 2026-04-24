@@ -14,9 +14,9 @@ import type { ColumnId, Chore } from '../types'
 import { ChoreCard } from './ChoreCard'
 
 const COLUMNS: { id: ColumnId; title: string; subtitle: string; accent: string }[] = [
-  { id: 'backlog', title: 'A fazer', subtitle: 'Fila', accent: 'from-indigo-500/20 to-slate-900/0' },
-  { id: 'doing', title: 'Em andamento', subtitle: 'Agora', accent: 'from-amber-500/20 to-slate-900/0' },
-  { id: 'done', title: 'Feito', subtitle: 'Concluído', accent: 'from-emerald-500/20 to-slate-900/0' },
+  { id: 'backlog', title: 'A fazer', subtitle: 'Fila', accent: 'from-violet-100 to-white' },
+  { id: 'doing', title: 'Em andamento', subtitle: 'Agora', accent: 'from-amber-100 to-white' },
+  { id: 'done', title: 'Feito', subtitle: 'Concluído', accent: 'from-lime-100 to-white' },
 ]
 
 function byColumn(chores: Chore[], col: ColumnId) {
@@ -62,14 +62,14 @@ function ColumnDrop({
     <section
       ref={setNodeRef}
       className={[
-        'flex min-h-[280px] min-w-[min(100%,280px)] flex-1 flex-col rounded-2xl border bg-slate-900/40 backdrop-blur-sm transition-colors',
-        isOver ? 'border-teal-500/60 ring-1 ring-teal-500/30' : 'border-slate-700/60',
+        'flex min-h-[280px] min-w-[min(100%,280px)] flex-1 flex-col rounded-3xl border bg-white/70 backdrop-blur-sm transition-colors',
+        isOver ? 'border-lime-400 ring-2 ring-lime-200' : 'border-slate-200',
       ].join(' ')}
     >
       <header
-        className={`rounded-t-2xl bg-gradient-to-br ${col.accent} border-b border-slate-700/50 px-3 py-2.5`}
+        className={`rounded-t-3xl bg-gradient-to-br ${col.accent} border-b border-slate-100 px-3 py-2.5`}
       >
-        <h2 className="text-sm font-bold text-slate-100">{col.title}</h2>
+        <h2 className="text-sm font-bold text-slate-950">{col.title}</h2>
         <p className="text-[10px] uppercase tracking-wider text-slate-500">
           {col.subtitle} · {count}
         </p>

@@ -1,4 +1,13 @@
-import { addDays, eachDayOfInterval, endOfWeek, format, isSameDay, parseISO, startOfWeek } from 'date-fns'
+import {
+  addDays,
+  eachDayOfInterval,
+  endOfWeek,
+  format,
+  isSameDay,
+  isToday,
+  parseISO,
+  startOfWeek,
+} from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { AppSettings, Chore } from '../types'
 import { getChoreIcon } from '../lib/choreIcons'
@@ -7,9 +16,9 @@ import { expandRecurrence } from '../lib/recurrence'
 import { clsx } from 'clsx'
 
 const HOUR_PX = 44
-const MIN_DAY_WIDTH = 150
-const LANE_WIDTH_PX = 132
-const MAX_DAY_WIDTH = 560
+const MIN_DAY_WIDTH = 170
+const LANE_WIDTH_PX = 180
+const MAX_DAY_WIDTH = 900
 
 type Props = {
   weekAnchor: Date
@@ -135,27 +144,83 @@ export function WeekCalendar({
   const totalGridWidth = 40 + dayWidths.reduce((sum, w) => sum + w, 0)
 
   return (
-    <div className="w-full max-w-full overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/30">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-700/50 px-3 py-2">
-        <button
-          type="button"
-          onClick={() => onWeekAnchor(addDays(weekAnchor, -7))}
-          className="rounded-lg border border-slate-600 bg-slate-800 px-2 py-1.5 text-sm text-slate-200"
-        >
-          ← Sem.
-        </button>
-        <p className="text-sm font-medium text-slate-200">
-          {format(start, 'd MMM', { locale: ptBR })} – {format(weekEnd, 'd MMM yyyy', { locale: ptBR })}
-        </p>
-        <button
-          type="button"
-          onClick={() => onWeekAnchor(addDays(weekAnchor, 7))}
-          className="rounded-lg border border-slate-600 bg-slate-800 px-2 py-1.5 text-sm text-slate-200"
-        >
-          Sem. →
-        </button>
+    <section className="w-full max-w-full overflow-hidden rounded-[2rem] bg-white/90 p-2 shadow-2xl shadow-slate-900/10 backdrop-blur-xl sm:p-4">
+      <div className="rounded-[1.6rem] bg-gradient-to-br from-lime-200 via-sky-100 to-violet-100 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
+                {format(start, 'MMMM yyyy', { locale: ptBR })}
+              </h2>
+              <button
+                type="button"
+                onClick={() => onWeekAnchor(startOfWeek(new Date(), { weekStartsOn }))}
+                className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white shadow-sm"
+              >
+                Hoje
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-slate-600">
+              {format(start, 'd MMM', { locale: ptBR })} -{' '}
+              {format(weekEnd, 'd MMM yyyy', { locale: ptBR })}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <div className="flex rounded-full bg-white/55 p-1 shadow-sm backdrop-blur">
+              <span className="rounded-full px-3 py-1 text-xs font-semibold text-slate-500">Mês</span>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-950 shadow-sm">
+                Semana
+              </span>
+              <span className="rounded-full px-3 py-1 text-xs font-semibold text-slate-500">Dia</span>
+            </div>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => onWeekAnchor(addDays(weekAnchor, -7))}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-lg font-bold text-slate-800 shadow-sm"
+                aria-label="Semana anterior"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => onWeekAnchor(addDays(weekAnchor, 7))}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-lg font-bold text-slate-800 shadow-sm"
+                aria-label="Próxima semana"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
-      <div className="scroller overflow-x-auto">
+
+      <div className="scroller overflow-x-auto rounded-[1.6rem] bg-white">
+        <div
+          className="sticky top-0 z-30 grid gap-1 border-b border-slate-100 bg-white p-1"
+          style={{
+            gridTemplateColumns: `40px ${dayWidths.map((w) => `${w}px`).join(' ')}`,
+            minWidth: `${totalGridWidth}px`,
+          }}
+        >
+          <div className="flex h-14 items-center justify-center rounded-2xl bg-slate-50 text-[10px] font-bold uppercase text-slate-400">
+            GMT-3
+          </div>
+          {days.map((day) => (
+            <div
+              key={`head-${day.toISOString()}`}
+              className={clsx(
+                'flex h-14 flex-col items-center justify-center rounded-2xl text-center shadow-sm',
+                isToday(day) ? 'bg-lime-200 text-slate-950' : 'bg-slate-100 text-slate-700',
+              )}
+            >
+              <span className="text-[10px] font-semibold lowercase">{format(day, 'EEE', { locale: ptBR })}</span>
+              <span className="text-2xl font-black leading-none">{format(day, 'd')}</span>
+            </div>
+          ))}
+        </div>
         <div
           className="grid"
           style={{
@@ -163,12 +228,11 @@ export function WeekCalendar({
             minWidth: `${totalGridWidth}px`,
           }}
         >
-          <div className="border-r border-slate-700/50" aria-hidden>
-            <div className="h-10" />
+          <div className="border-r border-slate-200" aria-hidden>
             {hours.map((h) => (
               <div
                 key={h}
-                className="border-b border-slate-800/50 pr-1 text-right text-[10px] text-slate-500"
+                className="border-b border-slate-100 pr-2 pt-1 text-right text-[11px] font-medium text-slate-400"
                 style={{ height: HOUR_PX }}
               >
                 {String(h).padStart(2, '0')}:00
@@ -176,21 +240,13 @@ export function WeekCalendar({
             ))}
           </div>
           {days.map((day) => (
-            <div key={day.toISOString()} className="border-l border-slate-700/30 min-w-[100px]">
+            <div key={day.toISOString()} className="border-l border-slate-100">
               {(() => {
                 const dayKey = day.toISOString()
                 const dayData = dayLayouts.get(dayKey)
                 if (!dayData) return null
                 return (
                   <>
-              <div className="sticky top-0 z-20 flex h-10 items-center justify-center border-b border-slate-700/50 bg-slate-900/90 px-1 text-center">
-                <div>
-                  <p className="text-[10px] uppercase text-slate-500">
-                    {format(day, 'EEE', { locale: ptBR })}
-                  </p>
-                  <p className="text-xs font-semibold text-slate-200">{format(day, 'd/M')}</p>
-                </div>
-              </div>
               <div
                 className="relative"
                 style={{ height: totalH * HOUR_PX }}
@@ -201,13 +257,13 @@ export function WeekCalendar({
                   return (
                     <div
                       key={h}
-                      className="absolute left-0 right-0 border-b border-slate-800/40"
+                      className="absolute left-0 right-0 border-b border-slate-100"
                       style={{ top: (h - dayStartHour) * HOUR_PX, height: HOUR_PX }}
                     >
                       <button
                         type="button"
                         onClick={() => onSlotClick(day, h, 0)}
-                        className="h-full w-full cursor-pointer rounded-md opacity-0 hover:bg-teal-500/10 hover:opacity-100"
+                        className="h-full w-full cursor-pointer rounded-md opacity-0 hover:bg-lime-200/40 hover:opacity-100"
                         title="Criar tarefa"
                       />
                     </div>
@@ -224,8 +280,8 @@ export function WeekCalendar({
                     }}
                     className={clsx(
                       'absolute flex flex-col items-start overflow-hidden',
-                      'rounded-lg border px-1 py-0.5 text-left shadow',
-                      'hover:ring-1 hover:ring-white/40',
+                      'rounded-2xl border px-2 py-1 text-left shadow-sm transition',
+                      'hover:z-50 hover:scale-[1.015] hover:shadow-lg',
                     )}
                     style={{
                       top,
@@ -234,15 +290,18 @@ export function WeekCalendar({
                       left: `calc(${leftPct}% + 2px)`,
                       width: `calc(${widthPct}% - 4px)`,
                       zIndex,
-                      borderColor: hexWithAlpha(color, 0.7),
-                      backgroundColor: hexWithAlpha(color, 0.28),
+                      borderColor: hexWithAlpha(color, 0.28),
+                      backgroundColor: hexWithAlpha(color, 0.18),
                     }}
+                    title={`${ch.title} · ${format(parseISO(ch.startAt), 'HH:mm', { locale: ptBR })} - ${format(parseISO(ch.endAt), 'HH:mm', { locale: ptBR })}`}
                   >
-                    <span className="flex w-full min-w-0 items-center gap-0.5">
+                    <span className="flex w-full min-w-0 items-center gap-1">
                       <Icon className="h-3.5 w-3.5 shrink-0" style={{ color }} />
-                      <span className="truncate text-[10px] font-semibold text-slate-100">{ch.title}</span>
+                      <span className="line-clamp-2 text-xs font-bold leading-tight text-slate-800">
+                        {ch.title}
+                      </span>
                     </span>
-                    <span className="text-[9px] text-slate-200/80">
+                    <span className="mt-0.5 text-[11px] font-medium text-slate-500">
                       {format(parseISO(ch.startAt), 'HH:mm', { locale: ptBR })} –{' '}
                       {format(parseISO(ch.endAt), 'HH:mm', { locale: ptBR })}
                     </span>
@@ -256,6 +315,6 @@ export function WeekCalendar({
           ))}
         </div>
       </div>
-    </div>
+    </section>
   )
 }

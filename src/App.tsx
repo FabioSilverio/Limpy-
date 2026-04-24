@@ -103,21 +103,48 @@ export default function App() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-3 pb-28 pt-4 sm:px-4 sm:pb-8">
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Limpy</h1>
+    <div className="mx-auto flex min-h-dvh w-full max-w-[1500px] flex-col gap-3 p-3 pb-28 lg:flex-row lg:p-5 lg:pb-5">
+      <aside className="rounded-[2rem] bg-slate-950 p-3 text-white shadow-2xl shadow-slate-900/20 lg:sticky lg:top-5 lg:h-[calc(100dvh-2.5rem)] lg:w-80 lg:shrink-0">
+        <div className="flex items-center justify-between gap-3 lg:block">
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-300 text-2xl font-black text-slate-950">
+              L
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Limpy</h1>
+              <p className="text-xs text-slate-400">Casa em modo jogo</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => openCreate()}
+            className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-950 transition hover:scale-105 lg:mt-6 lg:w-full lg:gap-2 lg:px-4"
+            aria-label="Nova tarefa"
+          >
+            <Plus className="h-6 w-6" strokeWidth={2.5} />
+            <span className="hidden text-sm font-semibold lg:inline">Nova tarefa</span>
+          </button>
+        </div>
+
+        <div className="mt-4 rounded-3xl bg-white/8 p-4">
           {workspace ? (
-            <p className="text-xs text-slate-400 flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {workspace.name} · <span className="font-mono">{workspace.code}</span> ·{' '}
-              <span className="text-teal-300">{nickname}</span>
-            </p>
+            <div>
+              <p className="mb-2 flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-lime-200">
+                <Users className="h-3.5 w-3.5" />
+                Workspace
+              </p>
+              <p className="text-sm font-semibold text-white">{workspace.name}</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Código <span className="font-mono text-slate-200">{workspace.code}</span> ·{' '}
+                <span className="text-lime-200">{nickname}</span>
+              </p>
+            </div>
           ) : (
-            <p className="text-xs text-slate-400">Modo offline (só neste dispositivo)</p>
+            <p className="text-sm text-slate-300">Modo offline neste dispositivo.</p>
           )}
         </div>
-        <div className="flex items-center gap-1 rounded-xl border border-slate-600/50 bg-slate-900/50 p-1">
+
+        <nav className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-1">
           <button
             type="button"
             onClick={() => {
@@ -125,8 +152,10 @@ export default function App() {
               setWeekAnchor(startOfWeek(weekAnchor, { weekStartsOn: settings.weekStartsOn }))
             }}
             className={[
-              'inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm',
-              view === 'calendar' ? 'bg-teal-600 text-white' : 'text-slate-300 hover:bg-slate-800',
+              'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition lg:justify-start',
+              view === 'calendar'
+                ? 'bg-lime-300 text-slate-950'
+                : 'bg-white/8 text-slate-300 hover:bg-white/12',
             ].join(' ')}
           >
             <CalendarDays className="h-4 w-4" />
@@ -136,20 +165,23 @@ export default function App() {
             type="button"
             onClick={() => setView('board')}
             className={[
-              'inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm',
-              view === 'board' ? 'bg-teal-600 text-white' : 'text-slate-300 hover:bg-slate-800',
+              'inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition lg:justify-start',
+              view === 'board'
+                ? 'bg-lime-300 text-slate-950'
+                : 'bg-white/8 text-slate-300 hover:bg-white/12',
             ].join(' ')}
           >
             <LayoutGrid className="h-4 w-4" />
             Quadro
           </button>
-        </div>
-        <div className="flex w-full justify-end gap-2 sm:w-auto">
+        </nav>
+
+        <div className="mt-4 flex gap-2">
           {workspace && (
             <button
               type="button"
               onClick={leaveWorkspace}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-white/8 px-3 py-2.5 text-sm text-slate-200 transition hover:bg-white/12"
               title="Sair do workspace"
             >
               <LogOut className="h-4 w-4" />
@@ -159,16 +191,19 @@ export default function App() {
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-white/8 px-3 py-2.5 text-sm text-slate-200 transition hover:bg-white/12"
           >
             <Settings className="h-4 w-4" />
             Ajustes
           </button>
         </div>
-      </header>
 
-      <main className="flex-1">
-        <GamificationPanel chores={chores} currentUser={nickname} />
+        <div className="mt-4">
+          <GamificationPanel chores={chores} currentUser={nickname} />
+        </div>
+      </aside>
+
+      <main className="min-w-0 flex-1">
         {view === 'calendar' && (
           <WeekCalendar
             weekAnchor={weekAnchor}
@@ -188,20 +223,22 @@ export default function App() {
           />
         )}
         {view === 'board' && (
-          <KanbanBoard
-            chores={chores}
-            currentUser={nickname}
-            onUpdateChores={replaceAll}
-            onOpenChore={(c) => setModal({ type: 'edit', chore: c })}
-          />
+          <section className="rounded-[2rem] bg-white/88 p-3 shadow-2xl shadow-slate-900/10 backdrop-blur-xl sm:p-5">
+            <KanbanBoard
+              chores={chores}
+              currentUser={nickname}
+              onUpdateChores={replaceAll}
+              onOpenChore={(c) => setModal({ type: 'edit', chore: c })}
+            />
+          </section>
         )}
       </main>
 
-      <div className="fixed bottom-6 right-4 z-30 sm:bottom-8 sm:right-8">
+      <div className="fixed bottom-6 right-4 z-30 lg:hidden">
         <button
           type="button"
           onClick={() => openCreate()}
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-500 text-white shadow-lg shadow-teal-900/40 transition hover:scale-105 active:scale-95"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-950 text-lime-200 shadow-lg shadow-slate-900/30 transition hover:scale-105 active:scale-95"
           aria-label="Nova tarefa"
         >
           <Plus className="h-7 w-7" strokeWidth={2.5} />

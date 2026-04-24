@@ -41,9 +41,9 @@ export function ChoreCard({ chore, onClick, compact, dragListeners, dragAttribut
       onClick={onClick}
       style={baseStyles}
       className={clsx(
-        'w-full text-left rounded-xl border px-3 py-2.5 transition shadow-sm',
-        'hover:brightness-110 active:scale-[0.99]',
-        isDragging && 'opacity-50 ring-2 ring-teal-400/60',
+        'w-full text-left rounded-2xl border px-3 py-2.5 transition shadow-sm',
+        'hover:brightness-105 active:scale-[0.99]',
+        isDragging && 'opacity-50 ring-2 ring-lime-300',
         compact && 'py-2',
       )}
     >
@@ -56,21 +56,21 @@ export function ChoreCard({ chore, onClick, compact, dragListeners, dragAttribut
           <ChoreIcon iconKey={chore.iconKey} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-50 line-clamp-2">{chore.title}</p>
-          <p className="text-[11px] text-slate-300/80 mt-0.5">{timeStr}</p>
+          <p className="text-sm font-semibold text-slate-900 line-clamp-2">{chore.title}</p>
+          <p className="text-[11px] text-slate-600 mt-0.5">{timeStr}</p>
           {chore.notes && !compact && (
-            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{chore.notes}</p>
+            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{chore.notes}</p>
           )}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {chore.remindWhatsApp && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-300/90">
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-700">
                 <MessageCircle className="h-3 w-3" />
                 WhatsApp
               </span>
             )}
             {chore.recurrence !== 'none' && (
               <span
-                className="inline-flex items-center gap-0.5 text-[10px] text-slate-200/90"
+                className="inline-flex items-center gap-0.5 text-[10px] text-slate-600"
                 title={recurrenceLabel(chore.recurrence)}
               >
                 <Repeat className="h-3 w-3" />

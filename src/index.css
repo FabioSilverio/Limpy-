@@ -18,8 +18,11 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply m-0 min-h-dvh font-sans antialiased text-slate-100;
-    @apply bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950;
+    @apply m-0 min-h-dvh font-sans antialiased text-slate-900;
+    background:
+      radial-gradient(circle at top left, rgba(218, 255, 96, 0.55), transparent 30rem),
+      radial-gradient(circle at 85% 10%, rgba(167, 213, 255, 0.55), transparent 34rem),
+      linear-gradient(135deg, #fff1e8 0%, #eef7ff 48%, #f2ffe4 100%);
   }
   #root {
     @apply min-h-dvh;
@@ -36,7 +39,7 @@
   width: 6px;
 }
 .scroller::-webkit-scrollbar-thumb {
-  @apply rounded-full bg-slate-600/60;
+  @apply rounded-full bg-slate-300/80;
 }
 
 @keyframes limpy-pulse {
