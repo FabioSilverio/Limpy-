@@ -7,7 +7,6 @@ import { expandRecurrence } from '../lib/recurrence'
 import { clsx } from 'clsx'
 
 const HOUR_PX = 44
-const MAX_VISIBLE_LANES = 3
 
 type Props = {
   weekAnchor: Date
@@ -35,6 +34,7 @@ export function WeekCalendar({
   for (let h = dayStartHour; h < dayEndHour; h++) hours.push(h)
 
   const totalH = dayEndHour - dayStartHour
+  const baseDayHeight = totalH * HOUR_PX
 
   const expandedChores = chores.flatMap((c) => expandRecurrence(c, start, weekEnd))
 
@@ -60,10 +60,8 @@ export function WeekCalendar({
       height: number
       color: string
       Icon: ReturnType<typeof getChoreIcon>
-      leftPct: number
-      widthPct: number
       zIndex: number
-      hiddenCount: number
+      bottom: number
     }
 
     const groups: (typeof dayChores)[] = []
@@ -82,51 +80,37 @@ export function WeekCalendar({
     }
     if (currentGroup.length > 0) groups.push(currentGroup)
 
-    return groups.flatMap((group) => {
-      const active: { endMin: number; column: number }[] = []
-      const withColumns = group.map((item) => {
-        for (let i = active.length - 1; i >= 0; i--) {
-          if (active[i].endMin <= item.startMin) active.splice(i, 1)
-        }
+    let stackedBottom = 0
+    return dayChores.map((item, idx) => {
+      const sh = item.start.getHours() + item.start.getMinutes() / 60
+      const eh = item.end.getHours() + item.end.getMinutes() / 60
+      const naturalTop = Math.max(0, (sh - dayStartHour) * HOUR_PX)
+      const endOffset = (eh - dayStartHour) * HOUR_PX
+      const height = Math.max(34, endOffset - naturalTop)
+      const top = Math.max(naturalTop, stackedBottom + 3)
+      const bottom = top + height
+      stackedBottom = bottom
+      const color = resolveChoreColor(item.ch.color, item.ch.iconKey)
 
-        let column = 0
-        while (active.some((a) => a.column === column)) column++
-        active.push({ endMin: item.endMin, column })
-        return { ...item, column }
-      })
-
-      const totalColumns = Math.max(...withColumns.map((item) => item.column)) + 1
-      const visibleColumns = Math.min(totalColumns, MAX_VISIBLE_LANES)
-      const overflowCount = Math.max(0, totalColumns - visibleColumns)
-      const overflowCarrierId =
-        overflowCount > 0
-          ? withColumns.find((item) => item.column === visibleColumns - 1)?.ch.id
-          : null
-
-      return withColumns
-        .filter((item) => item.column < visibleColumns)
-        .map((item) => {
-        const sh = item.start.getHours() + item.start.getMinutes() / 60
-        const eh = item.end.getHours() + item.end.getMinutes() / 60
-        const top = Math.max(0, (sh - dayStartHour) * HOUR_PX)
-        const endOffset = (eh - dayStartHour) * HOUR_PX
-        const height = Math.max(28, endOffset - top)
-        const color = resolveChoreColor(item.ch.color, item.ch.iconKey)
-
-        return {
-          ch: item.ch,
-          top,
-          height,
-          color,
-          Icon: getChoreIcon(item.ch.iconKey),
-          leftPct: item.column * (100 / visibleColumns),
-          widthPct: 100 / visibleColumns,
-          zIndex: 10 + item.column,
-          hiddenCount: item.ch.id === overflowCarrierId ? overflowCount : 0,
-        } satisfies LayoutItem
-      })
+      return {
+        ch: item.ch,
+        top,
+        height,
+        color,
+        Icon: getChoreIcon(item.ch.iconKey),
+        zIndex: 10 + idx,
+        bottom,
+      } satisfies LayoutItem
     })
   }
+
+  const dayLayouts = new Map(
+    days.map((day) => {
+      const layout = layoutForDay(day)
+      const neededHeight = layout.reduce((max, item) => Math.max(max, item.bottom + 8), baseDayHeight)
+      return [day.toISOString(), { layout, neededHeight }] as const
+    }),
+  )
 
   return (
     <div className="w-full max-w-full overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/30">
@@ -154,7 +138,7 @@ export function WeekCalendar({
           className="grid"
           style={{
             gridTemplateColumns: `40px repeat(${days.length}, minmax(100px, 1fr))`,
-            minWidth: `${40 + days.length * 130}px`,
+            minWidth: `${40 + days.length * 150}px`,
           }}
         >
           <div className="border-r border-slate-700/50" aria-hidden>
@@ -171,6 +155,12 @@ export function WeekCalendar({
           </div>
           {days.map((day) => (
             <div key={day.toISOString()} className="border-l border-slate-700/30 min-w-[100px]">
+              {(() => {
+                const dayKey = day.toISOString()
+                const dayData = dayLayouts.get(dayKey)
+                if (!dayData) return null
+                return (
+                  <>
               <div className="sticky top-0 z-20 flex h-10 items-center justify-center border-b border-slate-700/50 bg-slate-900/90 px-1 text-center">
                 <div>
                   <p className="text-[10px] uppercase text-slate-500">
@@ -181,7 +171,7 @@ export function WeekCalendar({
               </div>
               <div
                 className="relative"
-                style={{ height: totalH * HOUR_PX }}
+                style={{ height: dayData.neededHeight }}
                 role="presentation"
                 onKeyDown={() => undefined}
               >
@@ -202,8 +192,7 @@ export function WeekCalendar({
                   )
                 })}
 
-                {layoutForDay(day).map(
-                  ({ ch, top, height, color, Icon, leftPct, widthPct, zIndex, hiddenCount }) => (
+                {dayData.layout.map(({ ch, top, height, color, Icon, zIndex }) => (
                   <button
                     type="button"
                     key={ch.id}
@@ -212,16 +201,14 @@ export function WeekCalendar({
                       onChoreClick(ch)
                     }}
                     className={clsx(
-                      'absolute flex flex-col items-start overflow-hidden',
+                      'absolute left-1 right-1 flex flex-col items-start overflow-hidden',
                       'rounded-lg border px-1 py-0.5 text-left shadow',
                       'hover:ring-1 hover:ring-white/40',
                     )}
                     style={{
                       top,
                       height,
-                      minHeight: 28,
-                      left: `calc(${leftPct}% + 2px)`,
-                      width: `calc(${widthPct}% - 4px)`,
+                      minHeight: 34,
                       zIndex,
                       borderColor: hexWithAlpha(color, 0.7),
                       backgroundColor: hexWithAlpha(color, 0.28),
@@ -235,15 +222,12 @@ export function WeekCalendar({
                       {format(parseISO(ch.startAt), 'HH:mm', { locale: ptBR })} –{' '}
                       {format(parseISO(ch.endAt), 'HH:mm', { locale: ptBR })}
                     </span>
-                    {hiddenCount > 0 && (
-                      <span className="mt-0.5 rounded-full bg-slate-950/70 px-1.5 py-0.5 text-[9px] text-amber-300">
-                        +{hiddenCount} no mesmo horário
-                      </span>
-                    )}
                   </button>
-                ),
-                )}
+                ))}
               </div>
+                  </>
+                )
+              })()}
             </div>
           ))}
         </div>
