@@ -38,18 +38,82 @@ export function WeekCalendar({
   const expandedChores = chores.flatMap((c) => expandRecurrence(c, start, weekEnd))
 
   function layoutForDay(day: Date) {
-    const dayChores = expandedChores.filter((c) => isSameDay(parseISO(c.startAt), day))
+    const dayChores = expandedChores
+      .filter((c) => isSameDay(parseISO(c.startAt), day))
+      .map((ch) => {
+        const s = parseISO(ch.startAt)
+        const e = parseISO(ch.endAt)
+        return {
+          ch,
+          start: s,
+          end: e,
+          startMin: s.getHours() * 60 + s.getMinutes(),
+          endMin: e.getHours() * 60 + e.getMinutes(),
+        }
+      })
+      .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin)
 
-    return dayChores.map((ch) => {
-      const s = parseISO(ch.startAt)
-      const e = parseISO(ch.endAt)
-      const sh = s.getHours() + s.getMinutes() / 60
-      const eh = e.getHours() + e.getMinutes() / 60
-      const top = Math.max(0, (sh - dayStartHour) * HOUR_PX)
-      const endOffset = (eh - dayStartHour) * HOUR_PX
-      const height = Math.max(28, endOffset - top)
-      const color = resolveChoreColor(ch.color, ch.iconKey)
-      return { ch, top, height, color, Icon: getChoreIcon(ch.iconKey) }
+    type LayoutItem = {
+      ch: Chore
+      top: number
+      height: number
+      color: string
+      Icon: ReturnType<typeof getChoreIcon>
+      leftPct: number
+      widthPct: number
+      zIndex: number
+    }
+
+    const groups: (typeof dayChores)[] = []
+    let currentGroup: typeof dayChores = []
+    let currentGroupEnd = -1
+
+    for (const item of dayChores) {
+      if (currentGroup.length === 0 || item.startMin < currentGroupEnd) {
+        currentGroup.push(item)
+        currentGroupEnd = Math.max(currentGroupEnd, item.endMin)
+      } else {
+        groups.push(currentGroup)
+        currentGroup = [item]
+        currentGroupEnd = item.endMin
+      }
+    }
+    if (currentGroup.length > 0) groups.push(currentGroup)
+
+    return groups.flatMap((group) => {
+      const active: { endMin: number; column: number }[] = []
+      const withColumns = group.map((item) => {
+        for (let i = active.length - 1; i >= 0; i--) {
+          if (active[i].endMin <= item.startMin) active.splice(i, 1)
+        }
+
+        let column = 0
+        while (active.some((a) => a.column === column)) column++
+        active.push({ endMin: item.endMin, column })
+        return { ...item, column }
+      })
+
+      const totalColumns = Math.max(...withColumns.map((item) => item.column)) + 1
+
+      return withColumns.map((item) => {
+        const sh = item.start.getHours() + item.start.getMinutes() / 60
+        const eh = item.end.getHours() + item.end.getMinutes() / 60
+        const top = Math.max(0, (sh - dayStartHour) * HOUR_PX)
+        const endOffset = (eh - dayStartHour) * HOUR_PX
+        const height = Math.max(28, endOffset - top)
+        const color = resolveChoreColor(item.ch.color, item.ch.iconKey)
+
+        return {
+          ch: item.ch,
+          top,
+          height,
+          color,
+          Icon: getChoreIcon(item.ch.iconKey),
+          leftPct: item.column * (100 / totalColumns),
+          widthPct: 100 / totalColumns,
+          zIndex: 10 + item.column,
+        } satisfies LayoutItem
+      })
     })
   }
 
@@ -127,7 +191,7 @@ export function WeekCalendar({
                   )
                 })}
 
-                {layoutForDay(day).map(({ ch, top, height, color, Icon }) => (
+                {layoutForDay(day).map(({ ch, top, height, color, Icon, leftPct, widthPct, zIndex }) => (
                   <button
                     type="button"
                     key={ch.id}
@@ -136,7 +200,7 @@ export function WeekCalendar({
                       onChoreClick(ch)
                     }}
                     className={clsx(
-                      'absolute left-0.5 right-0.5 z-10 flex flex-col items-start overflow-hidden',
+                      'absolute flex flex-col items-start overflow-hidden',
                       'rounded-lg border px-1 py-0.5 text-left shadow',
                       'hover:ring-1 hover:ring-white/40',
                     )}
@@ -144,6 +208,9 @@ export function WeekCalendar({
                       top,
                       height,
                       minHeight: 28,
+                      left: `calc(${leftPct}% + 2px)`,
+                      width: `calc(${widthPct}% - 4px)`,
+                      zIndex,
                       borderColor: hexWithAlpha(color, 0.7),
                       backgroundColor: hexWithAlpha(color, 0.28),
                     }}
